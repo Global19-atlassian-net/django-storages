@@ -23,6 +23,7 @@ class AzureStorageTest(TestCase):
     def setUp(self, *args):
         self.storage = azure_storage.AzureStorage()
         self.storage._service = mock.MagicMock()
+        self.storage._custom_service = mock.MagicMock()
         self.storage.overwrite_files = True
         self.container_name = 'test'
         self.storage.azure_container = self.container_name
@@ -121,9 +122,9 @@ class AzureStorageTest(TestCase):
         self.assertRaises(ValueError, self.storage.get_available_name, "$$")
 
     def test_url(self):
-        self.storage._service.make_blob_url.return_value = 'ret_foo'
+        self.storage._custom_service.make_blob_url.return_value = 'ret_foo'
         self.assertEqual(self.storage.url('some blob'), 'ret_foo')
-        self.storage._service.make_blob_url.assert_called_once_with(
+        self.storage._custom_service.make_blob_url.assert_called_once_with(
             container_name=self.container_name,
             blob_name='some_blob',
             protocol='https')
@@ -131,17 +132,17 @@ class AzureStorageTest(TestCase):
     def test_url_expire(self):
         utc = pytz.timezone('UTC')
         fixed_time = utc.localize(datetime.datetime(2016, 11, 6, 4))
-        self.storage._service.generate_blob_shared_access_signature.return_value = 'foo_token'
-        self.storage._service.make_blob_url.return_value = 'ret_foo'
+        self.storage._custom_service.generate_blob_shared_access_signature.return_value = 'foo_token'
+        self.storage._custom_service.make_blob_url.return_value = 'ret_foo'
         with mock.patch('storages.backends.azure_storage.datetime') as d_mocked:
             d_mocked.utcnow.return_value = fixed_time
             self.assertEqual(self.storage.url('some blob', 100), 'ret_foo')
-            self.storage._service.generate_blob_shared_access_signature.assert_called_once_with(
+            self.storage._custom_service.generate_blob_shared_access_signature.assert_called_once_with(
                 self.container_name,
                 'some_blob',
                 BlobPermissions.READ,
                 expiry=fixed_time + timedelta(seconds=100))
-            self.storage._service.make_blob_url.assert_called_once_with(
+            self.storage._custom_service.make_blob_url.assert_called_once_with(
                 container_name=self.container_name,
                 blob_name='some_blob',
                 sas_token='foo_token',
